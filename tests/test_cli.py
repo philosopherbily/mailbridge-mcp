@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import venv
 from pathlib import Path
 from unittest.mock import patch
 try:
@@ -39,7 +40,9 @@ class CliTests(unittest.TestCase):
                 config=json.loads(output)['mcpServers']['mailbridge']
                 self.assertEqual(code,0)
                 self.assertTrue(Path(config['command']).is_absolute())
-                self.assertIn(str(self.path),config['args'])
+                config_path=Path(config['args'][config['args'].index('--config')+1])
+                self.assertTrue(config_path.is_absolute())
+                self.assertTrue(config_path.samefile(self.path))
                 self.assertNotIn('env',config)
                 if client=='workbuddy':self.assertEqual(config['type'],'stdio')
     def test_codex_toml_escapes_windows_paths(self):
@@ -48,6 +51,34 @@ class CliTests(unittest.TestCase):
         code,output=self.run_cli('client-config','--client','codex')
         self.assertEqual(code,0)
         self.assertEqual(tomllib.loads(output)['mcp_servers']['mailbridge']['args'][-1],'serve')
+    def test_generated_command_keeps_the_selected_virtual_environment(self):
+        self.run_cli('init')
+        environment=Path(self.tmp.name)/'agent environment'
+        venv.EnvBuilder(with_pip=False,symlinks=os.name!='nt').create(environment)
+        executable=environment/('Scripts/python.exe' if os.name=='nt' else 'bin/python')
+        result=subprocess.run([str(executable),'-m','mailbridge','--config',str(self.path),
+                               'client-config','--client','generic'],capture_output=True,text=True,check=True,timeout=30)
+        command=json.loads(result.stdout)['mcpServers']['mailbridge']['command']
+        selected=subprocess.run([command,'-c','import sys; print(sys.prefix)'],
+                                capture_output=True,text=True,check=True,timeout=15)
+        self.assertTrue(Path(selected.stdout.strip()).samefile(environment),
+                        'Generated command must retain the venv and its installed dependencies')
+
+        supervisor=Path(self.tmp.name)/'supervisor.json'
+        supervisor.write_text(json.dumps({'argv':[str(executable),'-c','pass']}),encoding='utf-8')
+        platform='windows' if os.name=='nt' else 'macos'
+        result=subprocess.run([str(executable),'-m','mailbridge','--config',str(self.path),
+                               'service','render','--platform',platform,'--supervisor-config',str(supervisor)],
+                              capture_output=True,text=True,check=True,timeout=30)
+        service=json.loads(result.stdout)
+        if platform=='windows':
+            import xml.etree.ElementTree as ET
+            command=ET.fromstring(service['content']).find('.//{http://schemas.microsoft.com/windows/2004/02/mit/task}Command').text
+        else:
+            import plistlib
+            command=plistlib.loads(service['content'].encode())['ProgramArguments'][0]
+        self.assertTrue(Path(command).parent.samefile(executable.parent),
+                        'Background launch must use the same virtual environment')
     def test_offline_doctor_never_connects(self):
         self.run_cli('init')
         with patch('mailbridge.transport.MailTransport.status', side_effect=AssertionError('must not connect')):

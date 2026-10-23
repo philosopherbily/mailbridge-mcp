@@ -8,15 +8,29 @@ A local email MCP server for IMAP reading and SMTP sending. Connect it to a comp
 
 **Status:** early release. Documented transport compatibility is not a claim that every client, operating system or email provider has passed an end-to-end test. See the [compatibility matrix](docs/compatibility.md).
 
+## Why this project exists
+
+MailBridge grew out of a practical need: use an existing company mailbox from an AI assistant to find correspondence, summarize work and prepare replies. For a mailbox without a suitable built-in connector in the chosen AI client, repeatedly copying messages into chat or maintaining a separate script for each agent adds friction. A standard IMAP/SMTP mailbox should have a reusable connection path.
+
+The project packages that path as a local MCP server, with shared setup instructions for people and AI agents. Keep the existing mailbox and its login credentials on the host, let a compatible local client launch the server when needed, and use an optional supervised tunnel for supported ChatGPT access. The goal is to configure once and avoid opening a PowerShell window for every session. Availability still depends on the host, client and valid credentials; OAuth renewal requires an external workflow in this release.
+
+It is intended for users whose providers permit IMAP/SMTP and who want to connect their own mailbox to ChatGPT, WorkBuddy or another compatible MCP client. This repository contains the reusable implementation and examples, with no company mailbox credentials or mail data. The bridge needs no model API key; your selected AI client and any tunnel have their own access requirements. Email content requested through a cloud AI client reaches that client/provider. See [client routes](docs/clients.md) and [privacy boundaries](docs/security.md).
+
 ## What it does
 
-- Search a bounded window of recent message headers and read email from explicitly allowed folders, preserving unread status. Search does not match full message bodies; inspect returned coverage/truncation before claiming that no mail exists.
+- Search up to 100 recent message headers within a selected folder and optional date range, then read matching email while preserving unread status. Search does not match full message bodies; inspect returned coverage/truncation before claiming that no mail exists.
 - List attachments and extract bounded text, CSV and JSON attachments.
 - Prepare an immutable local email preview, then send only when sending is enabled and the exact preview is confirmed.
 - Record send outcomes locally, including uncertain outcomes, to prevent automatic duplicate sends.
 - Generate client configurations and optional background-service files.
 
 The first release does not extract PDF or Office attachments, send attachments, implement OAuth login/token refresh, support Microsoft Graph/EWS/POP3, or scrape webmail. Addresses must be bare ASCII addresses; message subjects and text support Unicode.
+
+### Historical email: supported dates and current limits
+
+There is **no hard-coded earliest date** such as `2026-10-10`. A `search` request with `after: "2023-01-01"` and `before: "2024-01-01"` searches the chosen folder's 2023 date range, subject to what the mailbox exposes over IMAP. The start is inclusive and the end is exclusive.
+
+Each request inspects at most the **100 highest UIDs in that date range**. It returns at most `limit` matches, which defaults to 20 and cannot exceed 100. There is currently no continuation cursor, historical index or resumable archive scan. Repeating a truncated request does not retrieve the next page. This release therefore cannot promise a complete multi-year mailbox review. Read [search coverage and historical-mail guidance](docs/compatibility.md#search-coverage-and-historical-mail) before reporting that all messages have been checked.
 
 ## Install
 

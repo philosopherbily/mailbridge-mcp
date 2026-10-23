@@ -53,6 +53,30 @@ Microsoft's delegated IMAP scope is `https://outlook.office.com/IMAP.AccessAsUse
 
 For generic secure ports, IMAP implicit TLS commonly uses 993; SMTP implicit TLS uses 465, while submission on 587 normally uses STARTTLS. Follow the provider's documentation and never disable certificate verification to make a test pass. See [RFC 8314](https://www.rfc-editor.org/rfc/rfc8314.html).
 
+## Search coverage and historical mail
+
+The public server has no fixed earliest search date. `search.after` and `search.before` accept valid `YYYY-MM-DD` dates, including dates in 2023 or earlier. They become IMAP `SINCE` (inclusive) and `BEFORE` (exclusive) criteria for the configured folder. These criteria use the server's internal message date, which can differ from the sender's `Date` header, especially for imported mail; see [IMAP search semantics](https://www.rfc-editor.org/rfc/rfc9051.html#section-6.4.4). Only messages still present and exposed by the provider over IMAP can be found.
+
+For example, these are arguments to the MCP `search` tool, not a shell command:
+
+```json
+{"folder":"INBOX","after":"2023-01-01","before":"2024-01-01","query":"","limit":100}
+```
+
+The server first obtains the UIDs in that date range, then inspects the 100 highest UIDs at most. The optional text query is matched locally against those decoded headers. Results are ordered by descending UID, which is not necessarily the sender's date order. The default result limit is 20; the maximum is 100.
+
+| Response field | Meaning |
+|---|---|
+| `coverage.available` | Number of UIDs returned by IMAP for this folder and date range, before the local text query. |
+| `coverage.scanned` | Number of headers actually inspected, at most 100. |
+| `coverage.complete` | Whether all UIDs in that range had their headers inspected. This says nothing about other folders, dates, or full-body matches. |
+| `coverage.matches_in_scan` | Number of headers matching the text query among those inspected. |
+| `coverage.results_truncated` | Whether matching headers were omitted because of the requested result limit. A value of `false` can coexist with `complete: false`. |
+
+For historical work, query each authorized folder and split broad date ranges into smaller, non-overlapping ranges. Set `limit: 100` when all header matches are required. Check both `complete` and `results_truncated` for every range. IMAP date criteria have day precision: if a single day contains more than 100 messages, date splitting cannot finish that day's search. Report the gap. There is no pagination cursor, persistent historical index or resumable archive scan in v0.1, and rerunning a query does not advance to the next page. Oversized IMAP SEARCH responses fail with `IMAP_RESPONSE_TOO_LARGE`; narrow the range instead of treating that error as an empty result.
+
+These limits bound per-request header and message processing. They prevent a claim that this release has comprehensively reviewed a multi-year mailbox. A private deployment or another fork may add its own date restrictions or indexing; updating that deployment does not update this repository, and changing this repository does not automatically restart a deployed service.
+
 ## Features intentionally outside v0.1
 
 No OAuth login/refresh workflow, PDF/Office extraction, archive unpacking, outgoing attachments, arbitrary local-file access, HTML execution, Graph/EWS/POP3, automatic Sent-folder append or final-delivery guarantee. Unicode message text is supported; SMTPUTF8/internationalized mailbox addresses are not claimed.

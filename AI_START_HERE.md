@@ -82,7 +82,9 @@ Refresh/reload MCP tools using the client's supported UI. If this conversation s
 
 `mail_status`, `search`, `fetch`, `list_attachments`, `read_attachment`, `prepare_email`, `send_email`, `get_send_status`.
 
-Call `mail_status` with `verify_connection: true, verify_smtp: true`. Both authentication checks must succeed. No test email is needed. Search/fetch only if the user requested reading. Search is limited to a recent window of up to 100 headers; an empty result is not proof that a message does not exist.
+Call `mail_status` with `verify_connection: true, verify_smtp: true`. Both authentication checks must succeed. No test email is needed. Search/fetch only if the user requested reading. Search inspects at most the 100 highest UIDs within the selected folder and date range; an empty result is not proof that a message does not exist.
+
+For historical requests, pass `after` (inclusive) and `before` (exclusive) in `YYYY-MM-DD` form. There is no fixed earliest date; 2023 is a valid range. Use `limit: 100` and check `coverage.complete` and `coverage.results_truncated` for each requested folder and range. Split incomplete ranges by date, but report the gap if one day still exceeds 100 messages. There is no next-page cursor, historical index or resumable scan in this release. Do not repeat the same query expecting another page or claim a complete multi-year review from bounded results. See [historical-mail coverage](docs/compatibility.md#search-coverage-and-historical-mail).
 
 If sending was requested, the user may now set `allow_send: true` and restart the server/client. For an actual message: resolve exact addresses, prepare the complete content, inspect the preview, establish authorization for that exact message, send with its unchanged `draft_id` and `confirmation` plus `operation_authorized: true`, then read `get_send_status`. Prior specific authorization suffices; do not ask the same permission again. Never automatically retry `sending`, `uncertain`, `partial`, `refused` or `accepted`. SMTP acceptance is not delivery confirmation. Outgoing attachments are not supported in v0.1.
 

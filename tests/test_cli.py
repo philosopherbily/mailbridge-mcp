@@ -1,0 +1,66 @@
+import contextlib
+import io
+import json
+import os
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+try:
+    from mailbridge.cli import main
+except ImportError:
+    main = None
+
+
+class CliTests(unittest.TestCase):
+    def setUp(self):
+        self.assertIsNotNone(main, 'CLI must exist')
+        self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
+        self.path=Path(self.tmp.name)/'private settings'/'config.json'
+    def run_cli(self,*args):
+        stream=io.StringIO()
+        with contextlib.redirect_stdout(stream): code=main(['--config',str(self.path),*args])
+        return code,stream.getvalue()
+    def test_init_and_no_overwrite(self):
+        code,output=self.run_cli('init');self.assertEqual(code,0)
+        self.assertTrue(self.path.exists());before=self.path.read_bytes()
+        self.assertEqual(self.run_cli('init')[0],2)
+        self.assertEqual(before,self.path.read_bytes())
+    def test_missing_config_returns_machine_error(self):
+        code,output=self.run_cli('doctor')
+        self.assertEqual(code,2);self.assertEqual(json.loads(output)['error'],'CONFIG_MISSING')
+    def test_client_configs_no_secrets_and_absolute_paths(self):
+        self.run_cli('init')
+        for client in ['generic','claude','cursor','workbuddy']:
+            with self.subTest(client=client):
+                code,output=self.run_cli('client-config','--client',client)
+                config=json.loads(output)['mcpServers']['mailbridge']
+                self.assertEqual(code,0)
+                self.assertTrue(Path(config['command']).is_absolute())
+                self.assertIn(str(self.path),config['args'])
+                self.assertNotIn('env',config)
+                if client=='workbuddy':self.assertEqual(config['type'],'stdio')
+    def test_codex_toml_escapes_windows_paths(self):
+        import tomllib
+        self.run_cli('init')
+        code,output=self.run_cli('client-config','--client','codex')
+        self.assertEqual(code,0)
+        self.assertEqual(tomllib.loads(output)['mcp_servers']['mailbridge']['args'][-1],'serve')
+    def test_offline_doctor_never_connects(self):
+        self.run_cli('init')
+        with patch('mailbridge.transport.MailTransport.status', side_effect=AssertionError('must not connect')):
+            code,output=self.run_cli('doctor')
+        self.assertEqual(code,2)
+        self.assertNotIn('Traceback',output)
+    def test_stdio_subprocess_handshake(self):
+        self.run_cli('init')
+        messages=[{'jsonrpc':'2.0','id':1,'method':'initialize','params':{'protocolVersion':'2025-11-25'}},
+                  {'jsonrpc':'2.0','method':'notifications/initialized'},
+                  {'jsonrpc':'2.0','id':2,'method':'tools/list'}]
+        proc=subprocess.run([sys.executable,'-m','mailbridge','--config',str(self.path),'serve'],
+                            input=('\n'.join(json.dumps(x) for x in messages)+'\n').encode(),capture_output=True,timeout=15)
+        self.assertEqual(proc.returncode,0,proc.stderr.decode(errors='replace'))
+        output=[json.loads(line) for line in proc.stdout.splitlines()]
+        self.assertEqual(len(output),2);self.assertEqual(len(output[1]['result']['tools']),8)

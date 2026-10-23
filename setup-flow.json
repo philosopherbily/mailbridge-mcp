@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "entrypoint": "AI_START_HERE.md",
+  "languages": {"en": "README.md", "zh-CN": "README.zh-CN.md"},
+  "required_inputs": ["os", "client", "mailbox_address", "username", "imap_host", "imap_port", "imap_security", "smtp_host", "smtp_port", "smtp_security", "auth", "read_or_send_scope"],
+  "never_collect_in_chat": ["password", "app_password", "oauth_access_token", "refresh_token", "api_key"],
+  "states": [
+    {"id": "inventory", "next": "install", "stop_if": ["unsupported_protocol", "admin_policy_denied", "no_supported_client_transport"]},
+    {"id": "install", "check": "python -m mailbridge --version", "expected_version": "0.1.0", "next": "configure"},
+    {"id": "configure", "check": "python -m mailbridge init", "existing_config_code": "CONFIG_EXISTS", "next": "secret"},
+    {"id": "secret", "check": "python -m mailbridge --config CONFIG secret set", "human_secret_entry": true, "next": "offline_doctor"},
+    {"id": "offline_doctor", "check": "python -m mailbridge --config CONFIG doctor", "require_exit": 0, "require_json": {"ok": true}, "next": "authenticate"},
+    {"id": "authenticate", "check": "python -m mailbridge --config CONFIG doctor --connect --smtp", "require_exit": 0, "require_json": {"ok": true, "message_sent": false}, "next": "register_client"},
+    {"id": "register_client", "local_stdio": "docs/clients.md", "chatgpt_tunnel": "docs/chatgpt-tunnel.md", "next": "verify_tools"},
+    {"id": "verify_tools", "required_tools": ["mail_status", "search", "fetch", "list_attachments", "read_attachment", "prepare_email", "send_email", "get_send_status"], "next": "handoff"},
+    {"id": "handoff", "report": ["os", "client", "config_path", "offline_doctor", "imap_auth", "smtp_auth", "tool_count", "send_enabled", "actual_messages_sent", "background_state", "limitations"]}
+  ],
+  "error_behavior": {"NETWORK_DISABLED": "stop_and_explain_host_boundary", "SECRET_MISSING": "request_local_secret_entry", "SECURE_KEYRING_UNAVAILABLE": "stop_or_offer_explicit_environment_mode", "CONFIG_TEMPLATE": "obtain_real_provider_settings", "CONFIG_EXISTS": "inspect_and_reuse_without_overwrite"},
+  "sending": {"default_enabled": false, "requires": ["specific_user_authorization", "immutable_preview", "matching_confirmation", "operation_authorized_true"], "never_auto_retry_states": ["sending", "uncertain", "partial", "refused", "accepted"]}
+}

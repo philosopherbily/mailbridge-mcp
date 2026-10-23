@@ -11,7 +11,7 @@ Spec: design.md. Execution: autonomous implementation authorized by the user's r
 - [x] Background integration: render per-user OS services, use absolute paths and argument lists, no silent installation; test escaping and supervision; document tunnel limitations.
 - [x] AI-facing bilingual documentation, installation skill, setup decision tree and compatibility matrix using official sources.
 - [x] Run full offline tests, secret/private-data scan and independent review; fix material findings. See validation.md.
-- [ ] Publish allowlisted files to a new public GitHub repository; verify remote content and CI. Publication requires authenticated repository creation.
+- [x] Publish allowlisted files to the public GitHub repository and verify that its Git tree matches local source. Cross-platform check outcomes are recorded in [GitHub Actions](https://github.com/philosopherbily/mailbridge-mcp/actions/workflows/ci.yml).
 
 ## Review focus
 

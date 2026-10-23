@@ -1,5 +1,7 @@
 # MailBridge MCP
 
+[![Offline checks](https://github.com/philosopherbily/mailbridge-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/philosopherbily/mailbridge-mcp/actions/workflows/ci.yml)
+
 [简体中文](README.zh-CN.md) · [AI installation guide](AI_START_HERE.md) · [Client setup](docs/clients.md) · [Security](docs/security.md)
 
 A local email MCP server for IMAP reading and SMTP sending. Connect it to a compatible AI client through stdio, or to ChatGPT through OpenAI's Secure MCP Tunnel. Python 3.11+; Windows, macOS and Linux are design targets. The core uses the Python standard library and requires no model API key.

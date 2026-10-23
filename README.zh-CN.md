@@ -1,5 +1,7 @@
 # MailBridge MCP
 
+[![自动测试](https://github.com/philosopherbily/mailbridge-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/philosopherbily/mailbridge-mcp/actions/workflows/ci.yml)
+
 [English](README.md) · [AI 安装指引](AI_START_HERE.md) · [客户端配置](docs/clients.md) · [安全说明](docs/security.md)
 
 在本机运行的邮件 MCP 服务，通过 IMAP 读取邮件、通过 SMTP 发送邮件。兼容客户端可直接使用 stdio；ChatGPT 可通过 OpenAI 官方 Secure MCP Tunnel 接入。需要 Python 3.11 或以上，设计目标为 Windows、macOS 和 Linux。核心仅使用 Python 标准库，无需模型 API 密钥。

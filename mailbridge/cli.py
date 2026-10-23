@@ -40,7 +40,8 @@ def parser():
 
 
 def client_config(config, client):
-    command=str(Path(sys.executable).resolve())
+    # Resolving a POSIX venv symlink selects the base interpreter and loses its packages.
+    command=str(Path(sys.executable).absolute())
     args=['-m','mailbridge','--config',str(config.path),'serve']
     if client=='codex':
         # JSON basic-string escaping is valid TOML for these paths/arguments.
@@ -104,7 +105,7 @@ def main(argv=None):
             supervisor_path=str(Path(args.supervisor_config).expanduser().resolve())
             validate_supervisor_config(supervisor_path)
             output_path=str(Path(args.output).expanduser().resolve()) if args.output else None
-            result=render_service(args.platform,str(Path(sys.executable).resolve()),str(path),supervisor_path,str(Path(__file__).resolve().parent.parent),output_path=output_path)
+            result=render_service(args.platform,str(Path(sys.executable).absolute()),str(path),supervisor_path,str(Path(__file__).resolve().parent.parent),output_path=output_path)
             if args.output:
                 output=Path(args.output).expanduser().resolve()
                 output.parent.mkdir(parents=True,exist_ok=True)

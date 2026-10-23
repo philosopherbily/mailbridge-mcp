@@ -1,14 +1,15 @@
 # Validation record
 
-Release candidate: **0.1.0**, reviewed **2026-10-22**.
+Version: **0.1.0**, reviewed **2026-10-23**. [Live cross-platform CI results](https://github.com/philosopherbily/mailbridge-mcp/actions/workflows/ci.yml).
 
 ## Executed checks
 
-- Windows, Python 3.12: 92 offline unit/protocol tests pass. Tests use fake servers, example addresses and temporary state; no real messages were sent.
+- Windows, Python 3.12: 93 offline unit/protocol tests pass. Tests use fake servers, example addresses and temporary state; no real messages were sent.
 - MCP subprocess handshake and discovery return the expected eight tools.
 - A pure-Python wheel was built and installed offline into an isolated target. CLI version was checked outside the source checkout.
 - Public-source allowlist, potential-secret patterns, JSON validity and local Markdown links are checked by `scripts/check_publication.py`.
 - Independent code review found two material compatibility/state defects and one Unicode robustness defect. Regression tests were written and the issues fixed: UID metadata following an IMAP literal, definite pre-submission SMTP failures, and malformed Unicode request IDs.
+- CI exposed equivalent-path spellings on Windows/macOS; the assertion now checks actual file identity. A real virtual-environment subprocess regression test reproduced interpreter escape on Linux/macOS. Client and service command generation now preserve the selected environment's interpreter path.
 
 Run the repeatable checks from the repository root:
 
